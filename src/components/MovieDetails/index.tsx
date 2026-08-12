@@ -100,6 +100,7 @@ const messages = defineMessages('components.MovieDetails', {
   rtaudiencescore: 'Rotten Tomatoes Audience Score',
   tmdbuserscore: 'TMDB User Score',
   imdbuserscore: 'IMDB User Score – votes: {formattedCount}',
+  doubanuserscore: 'Douban User Score',
   watchlistSuccess: '<strong>{title}</strong> added to watchlist successfully!',
   watchlistDeleted:
     '<strong>{title}</strong> Removed from watchlist successfully!',
@@ -775,7 +776,8 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                 typeof ratingData?.rt?.criticsScore === 'number') ||
               (ratingData?.rt?.audienceRating &&
                 !!ratingData?.rt?.audienceScore) ||
-              ratingData?.imdb?.criticsScore) && (
+              ratingData?.imdb?.criticsScore ||
+              ratingData?.douban?.userScore) && (
               <div className="media-ratings">
                 {ratingData?.rt?.criticsRating &&
                   typeof ratingData?.rt?.criticsScore === 'number' && (
@@ -838,6 +840,23 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                     >
                       <ImdbLogo className="mr-1 w-6" />
                       <span>{ratingData.imdb.criticsScore}</span>
+                    </a>
+                  </Tooltip>
+                )}
+                {ratingData?.douban?.userScore && (
+                  <Tooltip
+                    content={intl.formatMessage(messages.doubanuserscore)}
+                  >
+                    <a
+                      href={ratingData.douban.url}
+                      className="media-rating"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span className="mr-1 rounded bg-green-600 px-1 text-xs font-bold leading-5 text-white">
+                        豆瓣
+                      </span>
+                      <span>{ratingData.douban.userScore.toFixed(1)}</span>
                     </a>
                   </Tooltip>
                 )}
@@ -1098,6 +1117,7 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
                 tvdbId={data.externalIds.tvdbId}
                 imdbId={data.externalIds.imdbId}
                 rtUrl={ratingData?.rt?.url}
+                doubanUrl={ratingData?.douban?.url}
                 mediaUrl={
                   data.mediaInfo?.mediaUrl ?? data.mediaInfo?.mediaUrl4k
                 }

@@ -6,6 +6,7 @@ export type AvailableCacheIds =
   | 'sonarr'
   | 'rt'
   | 'imdb'
+  | 'douban'
   | 'github'
   | 'plexguid'
   | 'plextv'
@@ -55,6 +56,10 @@ class CacheManager {
       checkPeriod: 60 * 30,
     }),
     imdb: new Cache('imdb', 'IMDB Radarr Proxy', {
+      stdTtl: 43200,
+      checkPeriod: 60 * 30,
+    }),
+    douban: new Cache('douban', 'Douban Movie API', {
       stdTtl: 43200,
       checkPeriod: 60 * 30,
     }),

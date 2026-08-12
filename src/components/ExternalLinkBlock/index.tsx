@@ -21,6 +21,7 @@ interface ExternalLinkBlockProps {
   tvdbId?: number;
   imdbId?: string;
   rtUrl?: string;
+  doubanUrl?: string;
   mediaUrl?: string;
 }
 
@@ -30,6 +31,7 @@ const ExternalLinkBlock = ({
   tvdbId,
   imdbId,
   rtUrl,
+  doubanUrl,
   mediaUrl,
 }: ExternalLinkBlockProps) => {
   const settings = useSettings();
@@ -102,6 +104,19 @@ const ExternalLinkBlock = ({
           rel="noreferrer"
         >
           <RTLogo />
+        </a>
+      )}
+      {doubanUrl && (
+        <a
+          href={doubanUrl}
+          aria-label="Douban"
+          className="flex w-8 justify-center opacity-50 transition duration-300 hover:opacity-100"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="rounded bg-green-600 px-1 text-sm font-bold leading-5 text-white">
+            豆
+          </span>
         </a>
       )}
       {imdbId && mediaType !== 'person' && (
