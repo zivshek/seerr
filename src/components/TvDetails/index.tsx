@@ -47,7 +47,7 @@ import {
   PlayIcon,
   StarIcon,
 } from '@heroicons/react/24/solid';
-import type { RTRating } from '@server/api/rating/rottentomatoes';
+import { type RatingResponse } from '@server/api/ratings';
 import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
 import { IssueStatus } from '@server/constants/issue';
 import {
@@ -99,6 +99,7 @@ const messages = defineMessages('components.TvDetails', {
   rtcriticsscore: 'Rotten Tomatoes Tomatometer',
   rtaudiencescore: 'Rotten Tomatoes Audience Score',
   tmdbuserscore: 'TMDB User Score',
+  doubanuserscore: 'Douban User Score',
   watchlistSuccess: '<strong>{title}</strong> added to watchlist successfully!',
   watchlistDeleted:
     '<strong>{title}</strong> Removed from watchlist successfully!',
@@ -144,8 +145,8 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
     ),
   });
 
-  const { data: ratingData } = useSWR<RTRating>(
-    `/api/v1/tv/${router.query.tvId}/ratings`
+  const { data: ratingData } = useSWR<RatingResponse>(
+    `/api/v1/tv/${router.query.tvId}/ratingscombined`
   );
 
   const sortedCrew = useMemo(
@@ -1097,44 +1098,65 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
         <div className="media-overview-right">
           <div className="media-facts">
             {(!!data.voteCount ||
-              (ratingData?.criticsRating && !!ratingData?.criticsScore) ||
-              (ratingData?.audienceRating && !!ratingData?.audienceScore)) && (
+              (ratingData?.rt?.criticsRating && !!ratingData?.rt?.criticsScore) ||
+              (ratingData?.rt?.audienceRating &&
+                !!ratingData?.rt?.audienceScore) ||
+              ratingData?.douban?.userScore) && (
               <div className="media-ratings">
-                {ratingData?.criticsRating && !!ratingData?.criticsScore && (
+                {ratingData?.rt?.criticsRating &&
+                  !!ratingData?.rt?.criticsScore && (
+                    <Tooltip
+                      content={intl.formatMessage(messages.rtcriticsscore)}
+                    >
+                      <a
+                        href={ratingData.rt.url}
+                        className="media-rating"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {ratingData.rt.criticsRating === 'Rotten' ? (
+                          <RTRotten className="mr-1 w-6" />
+                        ) : (
+                          <RTFresh className="mr-1 w-6" />
+                        )}
+                        <span>{ratingData.rt.criticsScore}%</span>
+                      </a>
+                    </Tooltip>
+                  )}
+                {ratingData?.rt?.audienceRating &&
+                  !!ratingData?.rt?.audienceScore && (
+                    <Tooltip
+                      content={intl.formatMessage(messages.rtaudiencescore)}
+                    >
+                      <a
+                        href={ratingData.rt.url}
+                        className="media-rating"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {ratingData.rt.audienceRating === 'Spilled' ? (
+                          <RTAudRotten className="mr-1 w-6" />
+                        ) : (
+                          <RTAudFresh className="mr-1 w-6" />
+                        )}
+                        <span>{ratingData.rt.audienceScore}%</span>
+                      </a>
+                    </Tooltip>
+                  )}
+                {ratingData?.douban?.userScore && (
                   <Tooltip
-                    content={intl.formatMessage(messages.rtcriticsscore)}
+                    content={intl.formatMessage(messages.doubanuserscore)}
                   >
                     <a
-                      href={ratingData.url}
+                      href={ratingData.douban.url}
                       className="media-rating"
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {ratingData.criticsRating === 'Rotten' ? (
-                        <RTRotten className="mr-1 w-6" />
-                      ) : (
-                        <RTFresh className="mr-1 w-6" />
-                      )}
-                      <span>{ratingData.criticsScore}%</span>
-                    </a>
-                  </Tooltip>
-                )}
-                {ratingData?.audienceRating && !!ratingData?.audienceScore && (
-                  <Tooltip
-                    content={intl.formatMessage(messages.rtaudiencescore)}
-                  >
-                    <a
-                      href={ratingData.url}
-                      className="media-rating"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {ratingData.audienceRating === 'Spilled' ? (
-                        <RTAudRotten className="mr-1 w-6" />
-                      ) : (
-                        <RTAudFresh className="mr-1 w-6" />
-                      )}
-                      <span>{ratingData.audienceScore}%</span>
+                      <span className="mr-1 rounded bg-green-600 px-1 text-xs font-bold leading-5 text-white">
+                        豆瓣
+                      </span>
+                      <span>{ratingData.douban.userScore.toFixed(1)}</span>
                     </a>
                   </Tooltip>
                 )}
@@ -1319,7 +1341,8 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                 tmdbId={data.id}
                 tvdbId={data.externalIds.tvdbId}
                 imdbId={data.externalIds.imdbId}
-                rtUrl={ratingData?.url}
+                rtUrl={ratingData?.rt?.url}
+                doubanUrl={ratingData?.douban?.url}
                 mediaUrl={plexUrl ?? plexUrl4k}
               />
             </div>

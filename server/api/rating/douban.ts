@@ -34,6 +34,7 @@ interface DoubanAbstractResponse {
       value?: number | string;
       count?: number;
     };
+    is_tv?: boolean;
     release_year?: string;
   };
 }
@@ -45,11 +46,12 @@ export interface DoubanRating {
   userScoreCount?: number;
 }
 
-interface DoubanMovieSearchOptions {
+interface DoubanSearchOptions {
   title: string;
   originalTitle?: string;
   year?: number;
   imdbId?: string;
+  isTv?: boolean;
 }
 
 const MINIMUM_SCORE = 0.45;
@@ -153,7 +155,24 @@ class Douban extends ExternalAPI {
     title,
     originalTitle,
     year,
-  }: DoubanMovieSearchOptions): Promise<DoubanRating | null> {
+  }: DoubanSearchOptions): Promise<DoubanRating | null> {
+    return this.getRatings({ title, originalTitle, year, isTv: false });
+  }
+
+  public async getTvRatings({
+    title,
+    originalTitle,
+    year,
+  }: DoubanSearchOptions): Promise<DoubanRating | null> {
+    return this.getRatings({ title, originalTitle, year, isTv: true });
+  }
+
+  private async getRatings({
+    title,
+    originalTitle,
+    year,
+    isTv,
+  }: DoubanSearchOptions): Promise<DoubanRating | null> {
     const titles = Array.from(
       new Set(
         [title, originalTitle].filter(
@@ -178,7 +197,8 @@ class Douban extends ExternalAPI {
         match.id,
         undefined,
         match.title,
-        match.url
+        match.url,
+        isTv
       );
 
       if (rating) {
@@ -201,7 +221,8 @@ class Douban extends ExternalAPI {
           result.id,
           result.rate,
           result.title,
-          result.url
+          result.url,
+          isTv
         );
 
         if (
@@ -220,7 +241,8 @@ class Douban extends ExternalAPI {
     subjectId: string,
     fallbackRate?: string,
     fallbackTitle?: string,
-    fallbackUrl?: string
+    fallbackUrl?: string,
+    isTv?: boolean
   ): Promise<(DoubanRating & { year?: number }) | null> {
     const abstract = await this.get<DoubanAbstractResponse>(
       '/j/subject_abstract',
@@ -234,7 +256,8 @@ class Douban extends ExternalAPI {
     if (
       (abstract.r !== undefined && abstract.r !== 0) ||
       !subject ||
-      !userScore
+      !userScore ||
+      (isTv ? subject.is_tv !== true : subject.is_tv === true)
     ) {
       return null;
     }

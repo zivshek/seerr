@@ -6881,8 +6881,8 @@ paths:
                     enum: ['Spilled', 'Upright']
   /movie/{movieId}/ratingscombined:
     get:
-      summary: Get RT and IMDB movie ratings combined
-      description: Returns ratings from RottenTomatoes and IMDB based on the provided movieId in a JSON object.
+      summary: Get combined movie ratings
+      description: Returns ratings from RottenTomatoes, IMDB, and Douban based on the provided movieId in a JSON object.
       tags:
         - movies
       parameters:
@@ -6936,6 +6936,21 @@ paths:
                       criticsScore:
                         type: number
                         example: 6.5
+                  douban:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: Mulan
+                      url:
+                        type: string
+                        example: 'https://movie.douban.com/subject/26357307/'
+                      userScore:
+                        type: number
+                        example: 4.9
+                      userScoreCount:
+                        type: number
+                        example: 354321
   /tv/{tvId}:
     get:
       summary: Get TV details
@@ -7118,6 +7133,66 @@ paths:
                   criticsRating:
                     type: string
                     enum: ['Rotten', 'Fresh']
+  /tv/{tvId}/ratingscombined:
+    get:
+      summary: Get combined TV ratings
+      description: Returns ratings from RottenTomatoes and Douban based on the provided tvId in a JSON object.
+      tags:
+        - tv
+      parameters:
+        - in: path
+          name: tvId
+          required: true
+          schema:
+            type: number
+            example: 76479
+      responses:
+        '200':
+          description: Ratings returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rt:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: The Boys
+                      year:
+                        type: number
+                        example: 2019
+                      url:
+                        type: string
+                        example: 'http://www.rottentomatoes.com/tv/the_boys'
+                      criticsScore:
+                        type: number
+                        example: 85
+                      criticsRating:
+                        type: string
+                        enum: ['Rotten', 'Fresh']
+                      audienceScore:
+                        type: number
+                        example: 65
+                      audienceRating:
+                        type: string
+                        enum: ['Spilled', 'Upright']
+                  douban:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: The Boys
+                      url:
+                        type: string
+                        example: 'https://movie.douban.com/subject/27022140/'
+                      userScore:
+                        type: number
+                        example: 8.6
+                      userScoreCount:
+                        type: number
+                        example: 123456
   /person/{personId}:
     get:
       summary: Get person details

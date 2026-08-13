@@ -1,5 +1,7 @@
 import { getMetadataProvider } from '@server/api/metadata';
+import Douban from '@server/api/rating/douban';
 import RottenTomatoes from '@server/api/rating/rottentomatoes';
+import { type RatingResponse } from '@server/api/ratings';
 import TheMovieDb from '@server/api/themoviedb';
 import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
 import type { TmdbKeyword } from '@server/api/themoviedb/interfaces';
@@ -206,6 +208,70 @@ tvRoutes.get('/:id/ratings', async (req, res, next) => {
     }
 
     return res.status(200).json(rtratings);
+  } catch (e) {
+    logger.debug('Something went wrong retrieving series ratings', {
+      label: 'API',
+      errorMessage: e.message,
+      tvId: req.params.id,
+    });
+    return next({
+      status: 500,
+      message: 'Unable to retrieve series ratings.',
+    });
+  }
+});
+
+/**
+ * Endpoint combining RottenTomatoes and Douban
+ */
+tvRoutes.get('/:id/ratingscombined', async (req, res, next) => {
+  const tmdb = new TheMovieDb();
+  const rtapi = new RottenTomatoes();
+  const doubanApi = new Douban();
+
+  try {
+    const tv = await tmdb.getTvShow({
+      tvId: Number(req.params.id),
+    });
+
+    const ratings: RatingResponse = {};
+    const year = tv.first_air_date
+      ? Number(tv.first_air_date.slice(0, 4))
+      : undefined;
+
+    try {
+      const rtratings = await rtapi.getTVRatings(tv.name, year);
+
+      if (rtratings) {
+        ratings.rt = rtratings;
+      }
+    } catch (e) {
+      logger.debug('Something went wrong retrieving Rotten Tomatoes ratings', {
+        label: 'API',
+        errorMessage: e.message,
+        tvId: req.params.id,
+      });
+    }
+
+    try {
+      const doubanRatings = await doubanApi.getTvRatings({
+        title: tv.name,
+        originalTitle: tv.original_name,
+        year,
+      });
+
+      if (doubanRatings) {
+        ratings.douban = doubanRatings;
+      }
+    } catch (e) {
+      logger.debug('Something went wrong retrieving Douban series ratings', {
+        label: 'API',
+        errorMessage: e.message,
+        tvId: req.params.id,
+      });
+    }
+
+    return res.status(200).json(ratings);
   } catch (e) {
     logger.debug('Something went wrong retrieving series ratings', {
       label: 'API',
