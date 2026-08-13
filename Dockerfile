@@ -12,6 +12,15 @@ WORKDIR /app
 
 FROM base AS prod-deps
 
+RUN \
+  case "${TARGETPLATFORM}" in \
+  'linux/arm64' | 'linux/arm/v7') \
+  apk update && \
+  apk add --no-cache python3 make g++ gcc libc6-compat bash && \
+  npm install --global node-gyp \
+  ;; \
+  esac
+
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store CI=true pnpm install --prod --frozen-lockfile
 
 # Remove large native modules for linux-x64-gnu platform (we use alpine which is musl-based)
