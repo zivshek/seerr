@@ -243,12 +243,27 @@ movieRoutes.get('/:id/ratingscombined', async (req, res, next) => {
 
       if (doubanRatings) {
         ratings.douban = doubanRatings;
+      } else {
+        logger.warn('Douban movie ratings not found', {
+          label: 'API',
+          movieId: req.params.id,
+          title: movie.title,
+          originalTitle: movie.original_title,
+          year: movie.release_date
+            ? Number(movie.release_date.slice(0, 4))
+            : undefined,
+        });
       }
     } catch (e) {
-      logger.debug('Something went wrong retrieving Douban movie ratings', {
+      logger.warn('Something went wrong retrieving Douban movie ratings', {
         label: 'API',
         errorMessage: e.message,
         movieId: req.params.id,
+        title: movie.title,
+        originalTitle: movie.original_title,
+        year: movie.release_date
+          ? Number(movie.release_date.slice(0, 4))
+          : undefined,
       });
     }
 

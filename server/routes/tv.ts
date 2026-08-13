@@ -262,12 +262,23 @@ tvRoutes.get('/:id/ratingscombined', async (req, res, next) => {
 
       if (doubanRatings) {
         ratings.douban = doubanRatings;
+      } else {
+        logger.warn('Douban series ratings not found', {
+          label: 'API',
+          tvId: req.params.id,
+          title: tv.name,
+          originalTitle: tv.original_name,
+          year,
+        });
       }
     } catch (e) {
-      logger.debug('Something went wrong retrieving Douban series ratings', {
+      logger.warn('Something went wrong retrieving Douban series ratings', {
         label: 'API',
         errorMessage: e.message,
         tvId: req.params.id,
+        title: tv.name,
+        originalTitle: tv.original_name,
+        year,
       });
     }
 
