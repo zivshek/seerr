@@ -165,10 +165,7 @@ movieRoutes.get('/:id/ratings', async (req, res, next) => {
     );
 
     if (!rtratings) {
-      return next({
-        status: 404,
-        message: 'Rotten Tomatoes ratings not found.',
-      });
+      return res.status(200).json(null);
     }
 
     return res.status(200).json(rtratings);
@@ -199,19 +196,43 @@ movieRoutes.get('/:id/ratingscombined', async (req, res, next) => {
       movieId: Number(req.params.id),
     });
 
-    const rtratings = await rtapi.getMovieRatings(
-      movie.title,
-      Number(movie.release_date.slice(0, 4))
-    );
+    const ratings: RatingResponse = {};
 
-    let imdbRatings;
-    if (movie.imdb_id) {
-      imdbRatings = await imdbApi.getMovieRatings(movie.imdb_id);
+    try {
+      const rtratings = await rtapi.getMovieRatings(
+        movie.title,
+        Number(movie.release_date.slice(0, 4))
+      );
+
+      if (rtratings) {
+        ratings.rt = rtratings;
+      }
+    } catch (e) {
+      logger.debug('Something went wrong retrieving Rotten Tomatoes ratings', {
+        label: 'API',
+        errorMessage: e.message,
+        movieId: req.params.id,
+      });
     }
 
-    let doubanRatings;
+    if (movie.imdb_id) {
+      try {
+        const imdbRatings = await imdbApi.getMovieRatings(movie.imdb_id);
+
+        if (imdbRatings) {
+          ratings.imdb = imdbRatings;
+        }
+      } catch (e) {
+        logger.debug('Something went wrong retrieving IMDB movie ratings', {
+          label: 'API',
+          errorMessage: e.message,
+          movieId: req.params.id,
+        });
+      }
+    }
+
     try {
-      doubanRatings = await doubanApi.getMovieRatings({
+      const doubanRatings = await doubanApi.getMovieRatings({
         title: movie.title,
         originalTitle: movie.original_title,
         year: movie.release_date
@@ -219,6 +240,10 @@ movieRoutes.get('/:id/ratingscombined', async (req, res, next) => {
           : undefined,
         imdbId: movie.imdb_id,
       });
+
+      if (doubanRatings) {
+        ratings.douban = doubanRatings;
+      }
     } catch (e) {
       logger.debug('Something went wrong retrieving Douban movie ratings', {
         label: 'API',
@@ -226,19 +251,6 @@ movieRoutes.get('/:id/ratingscombined', async (req, res, next) => {
         movieId: req.params.id,
       });
     }
-
-    if (!rtratings && !imdbRatings && !doubanRatings) {
-      return next({
-        status: 404,
-        message: 'No ratings found.',
-      });
-    }
-
-    const ratings: RatingResponse = {
-      ...(rtratings ? { rt: rtratings } : {}),
-      ...(imdbRatings ? { imdb: imdbRatings } : {}),
-      ...(doubanRatings ? { douban: doubanRatings } : {}),
-    };
 
     return res.status(200).json(ratings);
   } catch (e) {

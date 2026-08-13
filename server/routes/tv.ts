@@ -202,10 +202,7 @@ tvRoutes.get('/:id/ratings', async (req, res, next) => {
     );
 
     if (!rtratings) {
-      return next({
-        status: 404,
-        message: 'Rotten Tomatoes ratings not found.',
-      });
+      return res.status(200).json(null);
     }
 
     return res.status(200).json(rtratings);
