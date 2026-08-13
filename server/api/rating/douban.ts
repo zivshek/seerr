@@ -11,6 +11,17 @@ interface DoubanSuggestResult {
   url?: string;
 }
 
+interface DoubanSearchResponse {
+  subjects?: DoubanSearchResult[];
+}
+
+interface DoubanSearchResult {
+  id: string;
+  title: string;
+  rate?: string;
+  url?: string;
+}
+
 interface DoubanAbstractResponse {
   r?: number;
   subject?: {
@@ -23,6 +34,7 @@ interface DoubanAbstractResponse {
       value?: number | string;
       count?: number;
     };
+    release_year?: string;
   };
 }
 
@@ -85,15 +97,30 @@ const best = (
   results: DoubanSuggestResult[],
   titles: string[],
   year?: number
-): DoubanSuggestResult | undefined =>
-  results
-    .filter((result) => !result.type || result.type === 'movie')
-    .map((result) => ({
-      result,
-      score: titleScore(result, titles) * yearScore(result, year),
-    }))
+): DoubanSuggestResult | undefined => {
+  const movieResults = results.filter(
+    (result) => !result.type || result.type === 'movie'
+  );
+  const scoredResults = movieResults.map((result) => ({
+    result,
+    score: titleScore(result, titles) * yearScore(result, year),
+  }));
+  const match = scoredResults
     .filter(({ score }) => score >= MINIMUM_SCORE)
     .sort(({ score: a }, { score: b }) => b - a)[0]?.result;
+
+  if (match) {
+    return match;
+  }
+
+  if (
+    year &&
+    movieResults.length === 1 &&
+    Number(movieResults[0].year) === year
+  ) {
+    return movieResults[0];
+  }
+};
 
 /**
  * This is a best-effort provider using Douban's public movie endpoints.
@@ -126,55 +153,102 @@ class Douban extends ExternalAPI {
     title,
     originalTitle,
     year,
-    imdbId,
   }: DoubanMovieSearchOptions): Promise<DoubanRating | null> {
-    const titles = [title, originalTitle].filter(
-      (value): value is string => Boolean(value)
-    );
-    const queries = [imdbId, originalTitle, title].filter(
-      (value): value is string => Boolean(value)
+    const titles = Array.from(
+      new Set(
+        [title, originalTitle].filter(
+          (value): value is string => Boolean(value)
+        )
+      )
     );
 
-    for (const query of queries) {
+    for (const query of titles) {
       const suggestions = await this.get<DoubanSuggestResult[]>(
         '/j/subject_suggest',
         { params: { q: query } }
       );
 
-      const match =
-        imdbId === query ? suggestions[0] : best(suggestions, titles, year);
+      const match = best(suggestions, titles, year);
 
       if (!match?.id) {
         continue;
       }
 
-      const abstract = await this.get<DoubanAbstractResponse>(
-        '/j/subject_abstract',
-        { params: { subject_id: match.id } }
+      const rating = await this.getSubjectRating(
+        match.id,
+        undefined,
+        match.title,
+        match.url
       );
-      const subject = abstract.subject;
-      const userScore = Number(subject?.rate ?? subject?.rating?.value);
 
-      if (
-        (abstract.r !== undefined && abstract.r !== 0) ||
-        !subject ||
-        !userScore
-      ) {
-        continue;
+      if (rating) {
+        return rating;
       }
+    }
 
-      return {
-        title: subject.title ?? match.title,
-        url:
-          subject.url ??
-          match.url ??
-          `https://movie.douban.com/subject/${match.id}/`,
-        userScore,
-        userScoreCount: subject.rating?.count,
-      };
+    for (const query of titles) {
+      const search = await this.get<DoubanSearchResponse>('/j/search_subjects', {
+        params: {
+          type: 'movie',
+          tag: query,
+          page_limit: 10,
+          page_start: 0,
+        },
+      });
+
+      for (const result of search.subjects ?? []) {
+        const rating = await this.getSubjectRating(
+          result.id,
+          result.rate,
+          result.title,
+          result.url
+        );
+
+        if (
+          rating &&
+          (!year || !rating.year || Math.abs(rating.year - year) <= 1)
+        ) {
+          return rating;
+        }
+      }
     }
 
     return null;
+  }
+
+  private async getSubjectRating(
+    subjectId: string,
+    fallbackRate?: string,
+    fallbackTitle?: string,
+    fallbackUrl?: string
+  ): Promise<(DoubanRating & { year?: number }) | null> {
+    const abstract = await this.get<DoubanAbstractResponse>(
+      '/j/subject_abstract',
+      { params: { subject_id: subjectId } }
+    );
+    const subject = abstract.subject;
+    const userScore = Number(
+      subject?.rate ?? subject?.rating?.value ?? fallbackRate
+    );
+
+    if (
+      (abstract.r !== undefined && abstract.r !== 0) ||
+      !subject ||
+      !userScore
+    ) {
+      return null;
+    }
+
+    return {
+      title: subject.title ?? fallbackTitle ?? subjectId,
+      url:
+        subject.url ??
+        fallbackUrl ??
+        `https://movie.douban.com/subject/${subjectId}/`,
+      userScore,
+      userScoreCount: subject.rating?.count,
+      year: subject.release_year ? Number(subject.release_year) : undefined,
+    };
   }
 }
 
